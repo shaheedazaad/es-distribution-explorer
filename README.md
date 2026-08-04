@@ -85,5 +85,11 @@ Export only the isolated runtime directory so reference data and development
 files are not embedded:
 
 ```r
-shinylive::export("app", "site")
+shinylive::export(
+  "app",
+  "site",
+  template_params = list(
+    title = "Empirical effect size distibution explorer"
+  )
+)
 ```
