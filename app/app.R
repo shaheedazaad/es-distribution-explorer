@@ -42,6 +42,14 @@ filter_group <- function(title, content) {
   )
 }
 
+shinylive_download_button <- function(...) {
+  button <- shiny::downloadButton(...)
+  # Chromium blocks service-worker-backed Shinylive downloads when the anchor
+  # has a download attribute (Chromium issue 468227).
+  button$attribs$download <- NULL
+  button
+}
+
 quartile_summary <- function(distribution) {
   if (is.null(distribution) || !isTRUE(distribution$ready)) {
     return(NULL)
@@ -506,7 +514,7 @@ server <- function(input, output, session) {
           "the active search, filters, calculations, and plotting code."
         )
       ),
-      downloadButton(
+      shinylive_download_button(
         "download_reproduction",
         "Download reproduction package",
         class = "reproduction-button"
