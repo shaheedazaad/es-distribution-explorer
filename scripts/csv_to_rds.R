@@ -1,6 +1,8 @@
 #!/usr/bin/env Rscript
 
 # Convert the editable application CSV into the compressed RDS loaded by Shiny.
+# Also strips the source CSV itself down to only the columns the app actually
+# uses, so the checked-in CSV and the RDS built from it always stay in sync.
 #
 # Default usage, from the repository root:
 #   Rscript scripts/csv_to_rds.R
@@ -22,7 +24,7 @@ if (!file.exists(input_file)) {
 
 required_columns <- c(
   "doi", "title", "year", "journal", "keywords", "study", "description",
-  "claim", "sample_size", "pre_registration", "r_conversion_basis",
+  "sample_size", "pre_registration", "r_conversion_basis",
   "es_combined", "within_subjects", "field"
 )
 
@@ -118,6 +120,34 @@ if (any(invalid_field)) {
 }
 
 effects <- effects[required_columns]
+
+# Overwrite the source CSV with the stripped-down column set so the editable
+# CSV never drifts from what the app can actually use.
+dir.create(dirname(input_file), recursive = TRUE, showWarnings = FALSE)
+
+temporary_csv <- tempfile("effects-", tmpdir = dirname(input_file), fileext = ".csv")
+on.exit(unlink(temporary_csv), add = TRUE)
+write.csv(effects, temporary_csv, row.names = FALSE, na = "", fileEncoding = "UTF-8")
+
+# Confirm that the stripped CSV round-trips before replacing the source file.
+check_csv <- read.csv(
+  temporary_csv,
+  stringsAsFactors = FALSE,
+  check.names = FALSE,
+  na.strings = c("", "NA"),
+  encoding = "UTF-8"
+)
+stopifnot(nrow(check_csv) == nrow(effects), identical(names(check_csv), required_columns))
+
+if (!file.copy(temporary_csv, input_file, overwrite = TRUE)) {
+  stop("Could not write the stripped-down CSV: ", input_file, call. = FALSE)
+}
+
+# `on.exit()` is retained as failure cleanup, while this explicit removal is
+# needed when the script is evaluated at top level by Rscript.
+unlink(temporary_csv)
+
+# Build the RDS from the same stripped-down data now saved to the CSV.
 dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
 
 temporary_output <- tempfile("effects-", tmpdir = dirname(output_file), fileext = ".rds")
@@ -138,7 +168,7 @@ unlink(temporary_output)
 
 cat(
   "Converted ", nrow(effects), " rows\n",
-  "  CSV: ", normalizePath(input_file), "\n",
+  "  CSV: ", normalizePath(input_file), " (stripped to ", length(required_columns), " columns)\n",
   "  RDS: ", normalizePath(output_file), "\n",
   sep = ""
 )

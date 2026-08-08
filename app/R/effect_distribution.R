@@ -17,7 +17,6 @@ filter_effects <- function(data, keyword, fields, conversion_bases,
   if (length(terms)) {
     searchable <- paste(
       clean_text(data$keywords),
-      clean_text(data$claim),
       clean_text(data$title),
       clean_text(data$description),
       sep = "\n"

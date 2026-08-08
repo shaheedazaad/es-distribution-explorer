@@ -254,7 +254,7 @@ ui <- fluidPage(
       ),
       tags$p(
         class = "input-help",
-        "Comma-separated terms match any term across keywords, claim, title, and description."
+        "Comma-separated terms match any term across keywords, title, and description."
       ),
       actionButton(
         "calculate",

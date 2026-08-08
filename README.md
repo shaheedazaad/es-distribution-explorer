@@ -44,7 +44,7 @@ search and filter snapshot and regenerates the histograms and quartile estimates
 It also records the selected between-subjects display metric.
 
 Keyword matching is case-insensitive and searches across the `keywords`,
-`claim`, `title`, and `description` columns. Comma-separated terms use OR
+`title`, and `description` columns. Comma-separated terms use OR
 semantics: an effect is retained when any entered term matches.
 
 ## Runtime contents
@@ -52,8 +52,8 @@ semantics: an effect is retained when any entered term matches.
 - `app/app.R`: UI and server.
 - `app/R/effect_distribution.R`: base-R filtering, multilevel REML weights,
   weighted binning, quartiles, and plots.
-- `app/data/effects.rds`: the self-contained runtime dataset. It includes claim text
-  joined from the collated source and no longer depends on `reference/`.
+- `app/data/effects.rds`: the self-contained runtime dataset, stripped to only
+  the columns the app uses and no longer dependent on `reference/`.
 - `app/www/styles.css`: local, responsive styling with no web fonts or CDN assets.
 
 ## Updating the data
@@ -67,8 +67,10 @@ Rscript scripts/csv_to_rds.R
 ```
 
 The conversion script checks required columns, numeric values, logical values,
-and field codes before replacing the app data. Custom input and output paths can
-be supplied as its first and second command-line arguments.
+and field codes, then overwrites `data/effects.csv` itself with a stripped-down
+version containing only the columns the app uses, before replacing the app
+data. Custom input and output paths can be supplied as its first and second
+command-line arguments.
 
 ## Shinylive
 
