@@ -6,13 +6,25 @@
 > psychology.* [https://osf.io/preprints/psyarxiv/r4xwb_v1](https://osf.io/preprints/psyarxiv/r4xwb_v1).
 > Method and validation information can be found in the preprint.
 
-A dependency-light R Shiny app for searching the effect-size dataset and
-comparing weighted distributions from between-subjects and within-subjects
-designs.
+A dependency-light R Shiny app for searching the effect-size dataset, comparing
+weighted distributions, and fitting a clustered z-curve.
 
 ## Run locally
 
-The only runtime R package is `shiny`.
+The runtime R packages are `shiny` and `zcurve` 2.4.2 (with its dependencies).
+The WebAssembly bundle uses `zcurve` 2.4.2. Install the same version in a
+project-local library so a newer system installation does not change the fit:
+
+```r
+dir.create(".local-r-library", showWarnings = FALSE)
+install.packages(
+  "https://cran.r-project.org/src/contrib/Archive/zcurve/zcurve_2.4.2.tar.gz",
+  repos = NULL, type = "source", lib = ".local-r-library"
+)
+```
+
+The app automatically uses this library when launched from the project. Restart
+R after installation if a different `zcurve` version is already loaded.
 
 ```r
 shiny::runApp("app")
@@ -47,11 +59,31 @@ Keyword matching is case-insensitive and searches across the `keywords`,
 `title`, and `description` columns. Comma-separated terms use OR
 semantics: an effect is retained when any entered term matches.
 
+The **Z-curve** tab uses the same search and filters. Search first to see the
+matching effect count, then fit the significant two-sided tests across both
+designs. For between-subjects `r`, it calculates a t statistic with `n - 2`
+degrees of freedom. For within-subjects `dz`, it uses `t = |dz| sqrt(n)` with
+`n - 1` degrees of freedom. The app calls the [zcurve package's clustered
+fit](https://fbartos.github.io/zcurve/reference/zcurve_clustered.html) with
+500 bootstrap samples by default, clustering by DOI or DOI/study. It displays
+the [package plot](https://fbartos.github.io/zcurve/reference/plot.zcurve.html)
+with confidence intervals and annotations. Its reproduction archive contains
+the exact fitted object, estimates, calculated p-values, and PDF plot saved by
+the Shinylive session. `reproduce.R` reads that fit and draws the package plot;
+`refit.R` runs the analysis again from the dataset. A fresh native R refit can
+differ from webR at the final floating-point digit.
+
+For numerical stability, z-scores above 8 are passed to `zcurve` as 8. The
+package's upper fitting bound is 6, so these values all remain above the
+fitting interval. The calculated p-values are retained in the downloaded
+effect data.
+
 ## Runtime contents
 
 - `app/app.R`: UI and server.
 - `app/R/effect_distribution.R`: base-R filtering, multilevel REML weights,
   weighted binning, quartiles, and plots.
+- `app/R/zcurve.R`: p-value conversion and clustered z-curve fitting and plot.
 - `app/data/effects.rds`: the self-contained runtime dataset, stripped to only
   the columns the app uses and no longer dependent on `reference/`.
 - `app/www/styles.css`: local, responsive styling with no web fonts or CDN assets.
@@ -74,10 +106,8 @@ command-line arguments.
 
 ## Shinylive
 
-The runtime uses Shiny, base R, base graphics, and local files only. It avoids
-native-code statistical packages, filesystem writes, parallel processing,
-network requests, and server-only features. This keeps it suitable for a future
-Shinylive export.
+The ES distribution calculations use base R. The z-curve fit uses `zcurve`,
+whose WebAssembly binary and dependencies must be bundled for Shinylive.
 
 Confidence intervals are not implemented yet. Dashed lines show the mean
 weighted 25th, 50th, and 75th percentiles from 5,000 article-cluster bootstrap
@@ -90,6 +120,7 @@ files are not embedded:
 shinylive::export(
   "app",
   "site",
+  wasm_packages = TRUE,
   template_params = list(
     title = "Empirical effect size distibution explorer"
   )

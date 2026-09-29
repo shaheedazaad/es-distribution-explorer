@@ -20,7 +20,6 @@ export type WebRPayloadErr = {
     obj: {
         message: string;
         name: string;
-        errno?: number;
         stack?: string;
     };
     payloadType: 'err';

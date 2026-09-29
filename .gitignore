@@ -7,3 +7,6 @@
 .RData
 .Ruserdata
 .Rproj.user/
+
+# Project-local copy of the pinned zcurve release
+.local-r-library/

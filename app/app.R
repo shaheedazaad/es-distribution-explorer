@@ -1,6 +1,16 @@
+project_libraries <- file.path(c(getwd(), dirname(getwd())), ".local-r-library")
+for (project_library in project_libraries) {
+  if (file.exists(file.path(project_library, "zcurve", "DESCRIPTION")) &&
+      as.character(utils::packageVersion("zcurve", lib.loc = project_library)) == "2.4.2") {
+    .libPaths(c(project_library, .libPaths()))
+    break
+  }
+}
+
 library(shiny)
 
 source(file.path("R", "effect_distribution.R"), local = TRUE)
+source(file.path("R", "zcurve.R"), local = TRUE)
 effects <- readRDS(file.path("data", "effects.rds"))
 app_directory <- normalizePath(getwd(), mustWork = TRUE)
 
@@ -155,6 +165,92 @@ build_reproduction_script <- function(filters, between_metric = "r") {
     "cat(\"\\nMatching effects:\", nrow(filtered_effects), \"\\n\")",
     "cat(\"Created quartile_estimates.csv and weighted_histograms.pdf\\n\")"
   )
+}
+
+build_zcurve_refit_script <- function(filters, cluster_by, bootstraps) {
+  c(
+    "# Refit the analysis with zcurve 2.4.2 using the saved search and filters.",
+    'if (!requireNamespace("zcurve", quietly = TRUE)) stop("Install the zcurve package first.")',
+    'if (as.character(utils::packageVersion("zcurve")) != "2.4.2") stop("Install zcurve 2.4.2 for this refit.")',
+    r_assignment("search_terms", filters$keyword),
+    r_assignment("selected_fields", filters$fields),
+    r_assignment("selected_conversion_bases", filters$conversion_bases),
+    r_assignment("selected_preregistration", filters$preregistration),
+    r_assignment("selected_year_range", filters$year_range),
+    r_assignment("selected_journals", filters$journals),
+    r_assignment("cluster_by", cluster_by),
+    r_assignment("bootstraps", bootstraps),
+    "",
+    readLines(file.path(app_directory, "R", "effect_distribution.R"), warn = FALSE),
+    "",
+    readLines(file.path(app_directory, "R", "zcurve.R"), warn = FALSE),
+    "",
+    'effects <- read.csv("effects.csv", stringsAsFactors = FALSE, na.strings = c("", "NA"))',
+    "filtered <- filter_effects(effects, search_terms, selected_fields,",
+    "  selected_conversion_bases, selected_preregistration, selected_year_range,",
+    "  selected_journals)",
+    "prepared <- prepare_zcurve_effects(filtered)",
+    "result <- fit_clustered_zcurve(prepared, cluster_by, bootstraps)",
+    'if (!result$ready) stop(result$reason)',
+    "estimates <- data.frame(metric = rownames(result$estimates),",
+    "  result$estimates, row.names = NULL, check.names = FALSE)",
+    'write.csv(estimates, "refit_estimates.csv", row.names = FALSE)',
+    'grDevices::pdf("refit_zcurve.pdf", width = 9, height = 6)',
+    "draw_zcurve(result)",
+    "grDevices::dev.off()",
+    "print(estimates)"
+  )
+}
+
+build_zcurve_reproduction_script <- function() {
+  c(
+    "# Display the exact fitted object downloaded from the Shinylive session.",
+    'if (!requireNamespace("zcurve", quietly = TRUE)) stop("Install zcurve 2.4.2 first.")',
+    'if (as.character(utils::packageVersion("zcurve")) != "2.4.2") stop("Install zcurve 2.4.2 first.")',
+    'model <- readRDS("zcurve_fit.rds")',
+    'estimates <- read.csv("zcurve_estimates.csv", check.names = FALSE)',
+    "print(estimates)",
+    'grDevices::pdf("reproduced_zcurve.pdf", width = 9, height = 6)',
+    'graphics::plot(model, CI = TRUE, annotation = TRUE, plot_type = "base", cex.anno = 0.75)',
+    "grDevices::dev.off()",
+    'cat("Run source(\\"refit.R\\") for a fresh fit from the data.\\n")'
+  )
+}
+
+write_zcurve_reproduction_package <- function(result, file) {
+  stopifnot(isTRUE(result$ready), !is.null(result$model), !is.null(result$prepared))
+  directory <- tempfile("zcurve-reproduction-")
+  dir.create(directory)
+  on.exit(unlink(directory, recursive = TRUE, force = TRUE), add = TRUE)
+  write.csv(effects, file.path(directory, "effects.csv"), row.names = FALSE, na = "")
+  saveRDS(result$model, file.path(directory, "zcurve_fit.rds"), version = 2)
+  write.csv(data.frame(metric = rownames(result$estimates), result$estimates,
+    row.names = NULL, check.names = FALSE),
+    file.path(directory, "zcurve_estimates.csv"), row.names = FALSE)
+  write.csv(result$prepared, file.path(directory, "zcurve_effects.csv"),
+    row.names = FALSE, na = "")
+  grDevices::pdf(file.path(directory, "zcurve.pdf"), width = 9, height = 6)
+  tryCatch(draw_zcurve(result), finally = grDevices::dev.off())
+  writeLines(build_zcurve_reproduction_script(),
+    file.path(directory, "reproduce.R"), useBytes = TRUE)
+  writeLines(build_zcurve_refit_script(result$filters, result$cluster_by,
+    result$bootstraps), file.path(directory, "refit.R"), useBytes = TRUE)
+  writeLines(c("Clustered z-curve reproduction package", "",
+    "The session's exact fitted object, estimates, calculated p-values, and",
+    "package plot are saved as zcurve_fit.rds, zcurve_estimates.csv,",
+    "zcurve_effects.csv, and zcurve.pdf.",
+    "Requires zcurve 2.4.2 for an exact match to the Shinylive build.",
+    "Run source(\"reproduce.R\") to read the saved fit and draw the package plot.",
+    "Run source(\"refit.R\") to fit again from effects.csv with the saved filters",
+    "and seed. A fresh fit may differ in its last floating-point digit across",
+    "native R and webR."),
+    file.path(directory, "README.txt"))
+  archive <- file.path(normalizePath(dirname(file), mustWork = TRUE), basename(file))
+  old_directory <- setwd(directory)
+  on.exit(setwd(old_directory), add = TRUE)
+  utils::tar(archive, c("effects.csv", "zcurve_fit.rds", "zcurve_estimates.csv",
+    "zcurve_effects.csv", "zcurve.pdf", "reproduce.R", "refit.R", "README.txt"),
+    compression = "gzip", tar = "internal")
 }
 
 write_reproduction_package <- function(result, file) {
@@ -328,6 +424,8 @@ ui <- fluidPage(
     ),
     tags$section(
       class = "results-panel",
+      tabsetPanel(id = "view", type = "tabs",
+        tabPanel("ES distributions", value = "distributions",
       uiOutput("result_header"),
       tags$div(
         class = "chart-grid",
@@ -389,12 +487,52 @@ ui <- fluidPage(
         )
       ),
       uiOutput("reproduction_download_ui")
+        ),
+        tabPanel("Z-curve", value = "zcurve",
+          tags$article(class = "chart-card zcurve-card",
+            tags$div(class = "zcurve-heading",
+              tags$h3("Clustered z-curve"),
+              uiOutput("zcurve_search_header")),
+            tags$p(class = "input-help",
+              "Two-sided p-values are calculated from r and dz with their sample sizes. ",
+              "The fit uses significant effects from both designs together."),
+            tags$div(class = "zcurve-layout",
+              tags$div(class = "zcurve-controls",
+                radioButtons("zcurve_cluster", "Cluster by",
+                  choices = c("DOI" = "doi", "Unique study (DOI / study)" = "study"),
+                  selected = "doi"),
+                numericInput("zcurve_bootstraps", "Bootstrap samples",
+                  value = 500, min = 1, max = 5000, step = 1),
+                uiOutput("zcurve_fit_controls"),
+                tags$details(class = "zcurve-method",
+                  tags$summary("How the fit works"),
+                  tags$p("The zcurve package fits z-scores from two-sided p-values ",
+                    "with a nested cluster bootstrap. The plot shows its confidence ",
+                    "intervals and annotations. Z-scores above 8 are capped for ",
+                    "numerical stability; the calculated p-values are preserved ",
+                    "in the reproduction package."))
+              ),
+              tags$div(class = "zcurve-visual",
+                plotOutput("zcurve_plot", height = "430px"),
+                uiOutput("zcurve_estimates"))
+            )
+          ),
+          uiOutput("zcurve_download_ui")
+        )
+      )
     )
   )
 )
 
 server <- function(input, output, session) {
   calculation <- reactiveVal(NULL)
+  zcurve_search <- reactiveVal(NULL)
+  zcurve_fit <- reactiveVal(NULL)
+
+  observeEvent(input$view, {
+    updateActionButton(session, "calculate", label = if (identical(input$view, "zcurve"))
+      "Search effects" else "Calculate distributions")
+  })
 
   between_display <- reactive({
     result <- calculation()
@@ -415,6 +553,19 @@ server <- function(input, output, session) {
       journals = input$journal
     )
 
+    filters <- list(
+      keyword = trimws(input$keyword), fields = input$field,
+      conversion_bases = input$conversion_basis,
+      preregistration = input$preregistration,
+      year_range = input$year_range, journals = input$journal
+    )
+    if (identical(input$view, "zcurve")) {
+      zcurve_search(list(filters = filters, filtered = selected,
+        prepared = prepare_zcurve_effects(selected)))
+      zcurve_fit(NULL)
+      return(invisible(NULL))
+    }
+
     withProgress(message = "Calculating weighted distributions", value = 0, {
       incProgress(0.1, detail = "Filtering effects")
       between <- prepare_effect_distribution(selected, "between")
@@ -424,20 +575,80 @@ server <- function(input, output, session) {
 
       calculation(list(
         keyword = trimws(input$keyword),
-        filters = list(
-          keyword = trimws(input$keyword),
-          fields = input$field,
-          conversion_bases = input$conversion_basis,
-          preregistration = input$preregistration,
-          year_range = input$year_range,
-          journals = input$journal
-        ),
+        filters = filters,
         filtered = selected,
         between = between,
         within = within
       ))
     })
   }, ignoreInit = TRUE)
+
+  observeEvent(input$fit_zcurve, {
+    search <- zcurve_search()
+    req(search)
+    bootstraps <- as.integer(input$zcurve_bootstraps)
+    validate(need(is.finite(bootstraps) && bootstraps >= 1L && bootstraps <= 5000L,
+      "Choose 1 to 5,000 bootstrap samples."))
+    zcurve_fit(NULL)
+    withProgress(message = "Fitting clustered z-curve", value = 0, {
+      fit <- fit_clustered_zcurve(search$prepared, input$zcurve_cluster,
+        bootstraps)
+      fit$filters <- search$filters
+      fit$prepared <- search$prepared
+      zcurve_fit(fit)
+    })
+  })
+
+  output$zcurve_search_header <- renderUI({
+    search <- zcurve_search()
+    if (is.null(search)) return(tags$span(class = "zcurve-search-prompt",
+      "Search effects to see the matching count"))
+    tags$div(class = "zcurve-search-counts",
+      tags$strong(sprintf("%s matching effects",
+        format(nrow(search$filtered), big.mark = ","))),
+      tags$span(sprintf("%s p-values · %s significant (p < .05)",
+        format(nrow(search$prepared), big.mark = ","),
+        format(sum(search$prepared$p_value < .05), big.mark = ","))))
+  })
+
+  output$zcurve_fit_controls <- renderUI({
+    search <- zcurve_search()
+    if (is.null(search)) return(NULL)
+    tags$div(
+    if (nrow(search$filtered) > 1000L) tags$p(class = "large-fit-warning",
+      sprintf("%s matching effects: fitting the requested bootstrap samples can take many minutes in your browser. Narrow the search or lower the bootstrap count for a quicker fit.",
+          format(nrow(search$filtered), big.mark = ","))),
+      actionButton("fit_zcurve", "Fit clustered z-curve", class = "calculate-button")
+    )
+  })
+
+  output$zcurve_plot <- renderPlot(draw_zcurve(zcurve_fit()), res = 110)
+
+  output$zcurve_estimates <- renderUI({
+    fit <- zcurve_fit()
+    if (is.null(fit) || !isTRUE(fit$ready)) return(NULL)
+    tags$div(class = "zcurve-summary",
+      tags$p(sprintf("%s significant effects across %s clusters; %s bootstrap samples. Estimates and intervals are annotated on the plot.",
+        format(fit$significant, big.mark = ","), fit$clusters, fit$bootstraps)))
+  })
+
+  output$zcurve_download_ui <- renderUI({
+    if (!isTRUE(zcurve_fit()$ready)) return(NULL)
+    tags$div(class = "download-panel",
+      tags$div(tags$strong("Reproduce this z-curve"),
+        tags$p("Download the data, active filters, fitting code, and plot script.")),
+      shinylive_download_button("download_zcurve", "Download reproduction package",
+        class = "reproduction-button"))
+  })
+
+  output$download_zcurve <- downloadHandler(
+    filename = function() paste0("zcurve-reproduction-", Sys.Date(), ".tar.gz"),
+    contentType = "application/gzip",
+    content = function(file) {
+      fit <- zcurve_fit()
+      req(fit, fit$ready)
+      write_zcurve_reproduction_package(fit, file)
+    })
 
   output$result_header <- renderUI({
     result <- calculation()

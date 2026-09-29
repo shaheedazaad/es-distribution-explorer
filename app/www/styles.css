@@ -244,6 +244,36 @@ body {
 
 .results-panel { min-width: 0; }
 
+.results-panel .nav-tabs { margin-bottom: 20px; border-bottom-color: var(--line-dark); }
+.results-panel .nav-tabs > li > a { color: var(--primary-dark); font-weight: 650; }
+.results-panel .nav-tabs > li.active > a { color: var(--ink); }
+.zcurve-card { padding: 18px 20px; }
+.zcurve-heading { display: flex; align-items: baseline; justify-content: space-between;
+  flex-wrap: wrap; gap: 3px 14px; }
+.zcurve-card h3 { margin: 0 0 4px; }
+.zcurve-search-counts { display: flex; align-items: baseline; flex-wrap: wrap;
+  gap: 2px 10px; font-size: 12px; color: var(--muted); }
+.zcurve-search-counts strong { color: var(--primary-dark); font-size: 14px; }
+.zcurve-search-prompt { color: var(--muted); font-size: 12px; }
+.zcurve-card .input-help { margin: 0 0 12px; }
+.zcurve-layout { display: grid; grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+  gap: 22px; align-items: start; }
+.zcurve-controls { min-width: 0; padding: 14px; border: 1px solid var(--line);
+  border-radius: 6px; background: #f8fafc; }
+.zcurve-controls .form-group { margin-bottom: 12px; }
+.zcurve-controls .radio { margin: 5px 0; }
+.zcurve-controls .form-control { max-width: 125px; }
+.zcurve-controls .calculate-button { width: 100%; min-width: 0; margin: 2px 0 8px; }
+.zcurve-visual { min-width: 0; }
+.zcurve-method { margin-top: 8px; color: var(--muted); font-size: 12px; }
+.zcurve-method summary { color: var(--primary-dark); cursor: pointer; font-weight: 650; }
+.zcurve-method p { margin: 7px 0 0; }
+.large-fit-warning { color: #814b08; background: #fff3dc; border: 1px solid #efcf94;
+  border-radius: 5px; padding: 10px 12px; }
+.zcurve-summary { margin: 6px 0 2px; padding: 10px 12px; background: #f4f8fb;
+  border: 1px solid #cddae5; border-radius: 6px; }
+.zcurve-summary p { margin: 2px 0; font-size: 13px; }
+
 .results-intro,
 .results-heading {
   min-height: 88px;
@@ -420,6 +450,15 @@ body {
   .chart-grid { grid-template-columns: 1fr; }
 }
 
+@media (max-width: 920px) {
+  .zcurve-layout { grid-template-columns: 1fr; gap: 10px; }
+  .zcurve-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 18px; }
+  .zcurve-controls .form-group { margin-bottom: 0; }
+  .zcurve-controls .shiny-input-container { width: auto; }
+  .zcurve-controls .calculate-button { width: auto; min-width: 180px; margin: 0; }
+  .zcurve-method { flex-basis: 100%; margin-top: 0; }
+}
+
 @media (max-width: 760px) {
   .app-header { padding: 15px 18px; }
   .app-header h1 { font-size: 21px; }
@@ -430,6 +469,9 @@ body {
   .result-counts { justify-content: flex-start; }
   .chart-grid { gap: 16px; }
   .chart-card { padding-inline: 10px; }
+  .zcurve-controls { display: block; }
+  .zcurve-controls .form-group { margin-bottom: 12px; }
+  .zcurve-controls .calculate-button { width: 100%; }
   .quartile-label { min-height: 48px; }
   .quartile-value { font-size: 25px; }
   .download-panel { align-items: flex-start; flex-direction: column; }

@@ -8,7 +8,7 @@ type EditorBase = {
     name: string;
     readOnly: boolean;
 };
-export type EditorData = EditorBase & {
+type EditorData = EditorBase & {
     type: "data";
     data: {
         columns: {
@@ -20,33 +20,30 @@ export type EditorData = EditorBase & {
         }[];
     };
 };
-export type EditorHtml = EditorBase & {
+type EditorHtml = EditorBase & {
     path: string;
     type: "html";
     readOnly: boolean;
     frame: HTMLIFrameElement;
 };
-export type EditorFile = EditorBase & {
+type EditorFile = EditorBase & {
     path: string;
     type: "text";
     readOnly: boolean;
-    dirty: boolean;
     editorState: EditorState;
     scrollTop?: number;
     scrollLeft?: number;
 };
 export type EditorItem = EditorData | EditorHtml | EditorFile;
-export declare function FileTabs({ files, activeFileIdx, setActiveFileIdx, focusEditor, closeFile, }: {
+export declare function FileTabs({ files, activeFileIdx, setActiveFileIdx, closeFile }: {
     files: EditorItem[];
     activeFileIdx: number;
     setActiveFileIdx: React.Dispatch<React.SetStateAction<number>>;
-    focusEditor: () => void;
     closeFile: (e: React.SyntheticEvent, index: number) => void;
 }): React.JSX.Element;
-export declare function Editor({ webR, terminalInterface, filesInterface, hidden, }: {
+export declare function Editor({ webR, terminalInterface, filesInterface, }: {
     webR: WebR;
     terminalInterface: TerminalInterface;
     filesInterface: FilesInterface;
-    hidden: boolean;
 }): React.JSX.Element;
 export default Editor;

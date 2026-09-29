@@ -1,8 +1,8 @@
-import React from "react";
-import { WebR } from "../../webR/webr-main";
-import type { FSNode } from "../../webR/webr-main";
-import { FilesInterface } from "../App";
-import "./Files.css";
+import React from 'react';
+import { WebR } from '../../webR/webr-main';
+import type { FSNode } from '../../webR/webr-main';
+import { FilesInterface } from '../App';
+import './Files.css';
 interface ITreeNode {
     id: number;
     name: string;
@@ -12,9 +12,8 @@ interface ITreeNode {
     };
 }
 export declare function createTreeFromFSNode(fsNode: FSNode): ITreeNode;
-export declare function Files({ webR, filesInterface, hidden, }: {
+export declare function Files({ webR, filesInterface, }: {
     webR: WebR;
     filesInterface: FilesInterface;
-    hidden: boolean;
 }): React.JSX.Element;
 export default Files;

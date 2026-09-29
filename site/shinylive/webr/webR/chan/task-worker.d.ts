@@ -28,15 +28,15 @@ declare class _Syncifier {
     syncifyTask(task: SyncTask): void;
 }
 /**
- * Sets the events handler. This is called when the computation is
- * interrupted by an event. Should zero the event buffer.
+ * Sets the interrupt handler. This is called when the computation is
+ * interrupted. Should zero the interrupt buffer and throw an exception.
  * @internal
  */
-export declare function setEventsHandler(handler: () => void): void;
+export declare function setInterruptHandler(handler: () => void): void;
 /**
- * Sets the events buffer. Should be a shared array buffer. When element 0
- * is set non-zero it signals an event has been emitted.
+ * Sets the interrupt buffer. Should be a shared array buffer. When element 0
+ * is set non-zero it signals an interrupt.
  * @internal
  */
-export declare function setEventBuffer(buffer: ArrayBufferLike): void;
+export declare function setInterruptBuffer(buffer: ArrayBufferLike): void;
 export {};

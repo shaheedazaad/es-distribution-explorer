@@ -3,7 +3,7 @@ effects <- readRDS(file.path("app", "data", "effects.rds"))
 
 stopifnot(
   nrow(effects) > 10000,
-  all(c("keywords", "claim", "title", "description") %in% names(effects)),
+  all(c("keywords", "title", "description") %in% names(effects)),
   all(c("SP", "IDP", "CP") %in% unique(effects$field))
 )
 
@@ -92,7 +92,7 @@ stopifnot(
   !prepare_effect_distribution(mixed, "within")$ready
 )
 
-keyword_fields <- c("keywords", "claim", "title", "description")
+keyword_fields <- c("keywords", "title", "description")
 tokens <- vapply(keyword_fields, function(column) {
   value <- effects[[column]][which(!is.na(effects[[column]]) & nzchar(effects[[column]]))[1]]
   strsplit(value, "[^[:alnum:]]+")[[1]][1]
@@ -110,12 +110,11 @@ for (token in tokens[nzchar(tokens)]) {
   stopifnot(nrow(result) > 0)
 }
 
-synthetic <- effects[rep(1, 4), , drop = FALSE]
-synthetic$keywords <- c("alpha-only", "", "", "")
-synthetic$claim <- c("", "bravo-only", "", "")
-synthetic$title <- c("", "", "charlie-only", "")
-synthetic$description <- c("", "", "", "delta-only")
-for (token in c("alpha-only", "bravo-only", "charlie-only", "delta-only")) {
+synthetic <- effects[rep(1, 3), , drop = FALSE]
+synthetic$keywords <- c("alpha-only", "", "")
+synthetic$title <- c("", "charlie-only", "")
+synthetic$description <- c("", "", "delta-only")
+for (token in c("alpha-only", "charlie-only", "delta-only")) {
   result <- filter_effects(
     synthetic,
     token,
