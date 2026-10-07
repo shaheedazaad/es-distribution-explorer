@@ -477,3 +477,29 @@ body {
   .download-panel { align-items: flex-start; flex-direction: column; }
   .reproduction-button { width: 100%; }
 }
+
+.result-counts { align-items: center; }
+.explore-button {
+  margin: 0;
+  padding: 8px 16px;
+  border-color: var(--primary);
+  border-radius: 5px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 650;
+}
+.explore-button:hover,
+.explore-button:focus,
+.explore-button:active {
+  border-color: var(--primary-dark);
+  background: var(--primary-dark);
+  color: #fff;
+}
+.explore-button:focus-visible { outline: 3px solid #8bb9de; outline-offset: 2px; }
+.explorer-controls { display: flex; flex-wrap: wrap; gap: 12px; }
+.explorer-controls .shiny-input-container { width: 180px; max-width: 100%; }
+.explorer-table { overflow-x: auto; max-height: 55vh; }
+.explorer-table th { position: sticky; top: 0; background: #f1f6fa; }
+.explorer-table td { min-width: 110px; max-width: 360px; overflow-wrap: anywhere; }
+.explorer-table td:nth-child(2), .explorer-table td:nth-child(7) { min-width: 280px; }
+.explorer-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0; }

@@ -35,6 +35,16 @@ changed search term or filter. A design is plotted only when at least 10 effects
 have valid effect sizes, sample sizes, and article/study identifiers. The other
 design can still be plotted when one side is below that threshold.
 
+After calculating distributions or searching on the **Z-curve** tab, click
+**Explore effects** to browse the completed filter result. The table searches
+all columns, sorts by any column in either direction, and offers 10, 25, 50,
+or 100 rows per page. **Download effects CSV** exports all rows matching the
+table search in the selected order, across all pages. It includes the original
+dataset columns and effect sizes, including filtered effects that cannot be
+used in a distribution or z-curve fit. Sidebar changes take effect only after
+a new calculation/search. The explorer and CSV download also run in Shinylive
+without additional packages or external table assets.
+
 After a calculation, the between-subjects display can be switched among `r`,
 `d`, `r² / partial η²`, Cohen's `f`, and odds ratios without rerunning the
 filter or weighting model. The underlying weights stay on the original `r`
@@ -126,3 +136,14 @@ shinylive::export(
   )
 )
 ```
+
+## Checking the effects explorer
+
+Run `Rscript tests/check_explorer.R` for filtering, pagination, snapshot, and CSV
+checks. With Playwright and its Chromium browser installed, run
+`node tests/check_shinylive.cjs` to test the exported `site/` in Chromium. The
+browser check starts a local Python HTTP server on port 8877 and exercises both
+analysis views, table controls, CSV downloads, and the mobile modal. Set
+`PLAYWRIGHT_MODULE` to use an existing Playwright installation outside this
+repository. Screenshots and the downloaded CSV are saved in a temporary folder
+reported by the test.

@@ -11,6 +11,7 @@ library(shiny)
 
 source(file.path("R", "effect_distribution.R"), local = TRUE)
 source(file.path("R", "zcurve.R"), local = TRUE)
+source(file.path("R", "explorer.R"), local = TRUE)
 effects <- readRDS(file.path("data", "effects.rds"))
 app_directory <- normalizePath(getwd(), mustWork = TRUE)
 
@@ -492,7 +493,8 @@ ui <- fluidPage(
           tags$article(class = "chart-card zcurve-card",
             tags$div(class = "zcurve-heading",
               tags$h3("Clustered z-curve"),
-              uiOutput("zcurve_search_header")),
+              uiOutput("zcurve_search_header"),
+              uiOutput("explore_zcurve_ui")),
             tags$p(class = "input-help",
               "Two-sided p-values are calculated from r and dz with their sample sizes. ",
               "The fit uses significant effects from both designs together."),
@@ -528,6 +530,89 @@ server <- function(input, output, session) {
   calculation <- reactiveVal(NULL)
   zcurve_search <- reactiveVal(NULL)
   zcurve_fit <- reactiveVal(NULL)
+
+  explorer_snapshot <- reactiveVal(NULL)
+  explorer_page_number <- reactiveVal(1L)
+
+  output$explore_distribution_ui <- renderUI({
+    req(calculation())
+    actionButton("explore_distribution", "Explore effects", class = "explore-button")
+  })
+  output$explore_zcurve_ui <- renderUI({
+    req(zcurve_search())
+    actionButton("explore_zcurve", "Explore effects", class = "explore-button")
+  })
+
+  open_explorer <- function(result, label) {
+    req(result)
+    explorer_snapshot(result$filtered)
+    explorer_page_number(1L)
+    showModal(modalDialog(
+      title = paste("Explore effects —", label), size = "l",
+      tags$p("Effects from the completed search and filters, including rows that may not be usable in the analysis. Effect sizes are the original r (between-subjects) or dz (within-subjects) values."),
+      tags$div(class = "explorer-controls",
+        textInput("explorer_search", "Search all columns", value = ""),
+        selectInput("explorer_sort", "Order by", choices = names(result$filtered),
+          selected = "doi"),
+        selectInput("explorer_direction", "Direction",
+          choices = c("Ascending" = "asc", "Descending" = "desc")),
+        selectInput("explorer_size", "Rows per page", choices = c(10, 25, 50, 100), selected = 25)),
+      tags$div(class = "explorer-table", role = "region", tabindex = "0",
+        `aria-label` = "Filtered effects table", tableOutput("explorer_table")),
+      tags$div(class = "explorer-pagination",
+        actionButton("explorer_previous", "Previous"),
+        textOutput("explorer_count", inline = TRUE),
+        actionButton("explorer_next", "Next")),
+      tags$p(class = "input-help", "CSV includes every row matching the table search, in the selected order, across all pages."),
+      footer = tagList(
+        shinylive_download_button("download_effects", "Download effects CSV"),
+        modalButton("Close")), easyClose = TRUE
+    ))
+  }
+  observeEvent(input$explore_distribution, open_explorer(calculation(), "distributions"))
+  observeEvent(input$explore_zcurve, open_explorer(zcurve_search(), "z-curve"))
+
+  explorer_rows <- reactive({
+    data <- explorer_snapshot()
+    req(!is.null(data))
+    explore_effects(data,
+      if (is.null(input$explorer_search)) "" else input$explorer_search,
+      if (is.null(input$explorer_sort)) "doi" else input$explorer_sort,
+      identical(input$explorer_direction, "desc"))
+  })
+  explorer_size <- reactive({
+    size <- suppressWarnings(as.integer(input$explorer_size))
+    if (length(size) != 1L || is.na(size) || !size %in% c(10L, 25L, 50L, 100L)) 25L else size
+  })
+  observeEvent(list(input$explorer_search, input$explorer_sort,
+    input$explorer_direction, input$explorer_size), {
+    explorer_page_number(1L)
+  })
+  explorer_current_page <- reactive({
+    explorer_page(explorer_rows(), explorer_page_number(), explorer_size())
+  })
+  observeEvent(input$explorer_previous, {
+    explorer_page_number(max(1L, explorer_current_page()$page - 1L))
+  })
+  observeEvent(input$explorer_next, {
+    page <- explorer_current_page()
+    explorer_page_number(min(page$pages, page$page + 1L))
+  })
+  output$explorer_table <- renderTable({
+    explorer_current_page()$data
+  }, striped = TRUE, bordered = TRUE, spacing = "s", digits = 6,
+    rownames = FALSE, na = "", sanitize.text.function = htmltools::htmlEscape)
+  output$explorer_count <- renderText({
+    page <- explorer_current_page()
+    sprintf("Rows %s–%s of %s · Page %s of %s", page$first, page$last,
+      nrow(explorer_rows()), page$page, page$pages)
+  })
+  output$download_effects <- downloadHandler(
+    filename = function() paste0("filtered-effects-", Sys.Date(), ".csv"),
+    contentType = "text/csv; charset=utf-8",
+    content = function(file) {
+      write.csv(explorer_rows(), file, row.names = FALSE, na = "", fileEncoding = "UTF-8")
+    })
 
   observeEvent(input$view, {
     updateActionButton(session, "calculate", label = if (identical(input$view, "zcurve"))
@@ -683,7 +768,8 @@ server <- function(input, output, session) {
         tags$span(
           class = "count-chip chip-within",
           paste(format(result$within$usable_effects, big.mark = ","), "within")
-        )
+        ),
+        uiOutput("explore_distribution_ui")
       )
     )
   })
